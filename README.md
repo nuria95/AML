@@ -1,5 +1,4 @@
-# AML
-AML projects
-Hi!
-Here Mick and Nuria will commit the codes for the AML projects.
+# AML projects
+Wecome to AML repo!
+Here Mick and Nuria will commit their codes for the AML projects.
 Kisses
