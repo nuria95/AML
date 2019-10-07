@@ -31,7 +31,7 @@ class Tools():
     @staticmethod
     def read_csv(file_path):
         if not os.path.exists(file_path):
-            raise ImportError(file_path + ' doesnt exist man')
+            raise ImportError(file_path + ' doesnt exist')
         else:
             return pd.read_csv(file_path, float_precision='high')
 
