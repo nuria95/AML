@@ -30,18 +30,20 @@ class Tools():
         print(pd_DataFrame.columns, '\n')
         print('Dtypes:')
         print(pd_DataFrame.dtypes, '\n')
-        print('Num classes')
-        print(pd_DataFrame['y'].counts, '\n')
+        
 
 
 
 class Data():
 
-    def __init__(self, pd_DataFrame_x, pd_DataFrame_y=None):
+    def __init__(self, pd_DataFrame_x, pd_DataFrame_y=None,fill_nans=True):
         self.cols_with_feats = [
             col for col in pd_DataFrame_x.columns if 'x' in col]
         self.x_pd = pd_DataFrame_x[self.cols_with_feats]
-        self.x = pd_DataFrame_x[self.cols_with_feats].to_numpy(dtype=np.float64)
+        if fill_nans:
+            self.fill_na()
+        
+        self.x = self.x_pd.to_numpy(dtype=np.float64)
         self.id = pd_DataFrame_x['id']
         self.x_nfeatures = self.x.shape[1]
         self.x_ndata = self.x.shape[0]
@@ -58,7 +60,10 @@ class Data():
        #print(np.nanstd(self.x_standard))
        
     def fill_na(self):
-        return
+        for i in self.x_pd.columns:
+            self.x_pd[i].fillna(self.x_pd[i].mean(),inplace=True)
+        
+
         
 
 
@@ -69,12 +74,11 @@ class Predict():
     def fit_ElasticNetCV(self, l1_ratio,fit_intercept=True, normalize = True, cv=5, random_state=0):
         self.regr = ElasticNetCV(l1_ratio=l1_ratio,fit_intercept=fit_intercept, normalize = normalize, cv=cv, max_iter=2000)
         self.regr.fit(self.x_train,self.y_train)
+        return self.regr
 
     def fit_KernelRidge(self,alpha=1.0,kernel='rbf',degree=3):
         self.regr=KernelRidge(alpha=alpha,kernel=kernel, degree=degree)
         self.regr.fit(self.x_train,self.y_train)
-        
-
 
     def print_attributes(self):
         #print('Grid of Alphas:', self.regr.alphas_)
@@ -135,16 +139,16 @@ def main(write_file=True):
         return
 
     print('Training data:')
-    train_data = Data(train_x_pd, train_y_pd)
+    train_data = Data(train_x_pd, train_y_pd,fill_nans=True)
     print('num_features', train_data.x_nfeatures)
     print('lenght training data', train_data.x_ndata)
     print('percentage empty data per feature:\n',train_data.percentage_empty_data() )
-    
+   
     ##Feature selection
     #feature_selection.featureImportance(train_data.x_pd,train_data.y)
     
     ##Standardize Data
-    # train_data.StandardizeData()
+    train_data.StandardizeData()
     
     ##Kernel Ridge Regression:
     # pred=Predict(np.nan_to_num(train_data.x_standard),train_data.y, test_size=0.1)
@@ -154,15 +158,13 @@ def main(write_file=True):
     
 
     #Outlier detection
-    outliers=OutlierDetection(np.nan_to_num(x=train_data.x,nan=0),train_data.y) #change nan ->0 by mean of column
+    outliers=OutlierDetection(train_data.x,train_data.y) 
     [x_outliers, y_outliers]=outliers.remove_outliers()
     
-   
-    print('nan',x_outliers[np.isnan(x_outliers)])
     print('Len Filtered data:',len(x_outliers))
 
     pred=Predict(x_outliers,y_outliers, test_size=0.1)
-    pred.fit_ElasticNetCV(l1_ratio=[1],fit_intercept=True,normalize = True, cv=5) #find best is 1 (using grid suggested by sklearn)
+    regr=pred.fit_ElasticNetCV(l1_ratio=[1],fit_intercept=True,normalize = True, cv=5) #find best is 1 (using grid suggested by sklearn)
     pred.print_attributes()
     pred.predict()
     print('R2_SCORE in training:',pred.r2_score())
@@ -171,8 +173,15 @@ def main(write_file=True):
     
     # # print('Test data:')
     # # #Tools.analyze(test_pd)
-    # # test_data = Data(test_pd)
-    # # print('test_data', test_data.x_ndata)
+    test_data = Data(test_pd,fill_nans=True)
+    y_test_pred=regr.predict(test_data.x)
+    
 
+     # write to file
+    if write_file:
+        df = pd.DataFrame({'y': y_test_pred, 'id': test_data.id})
+        df = df.set_index('id')
+        df.to_csv(os.path.join(data_path, 'Data', 'pred_Nuria.csv'))
+    
 if __name__ == '__main__':
-    main(write_file=False)
+    main(write_file=True)
